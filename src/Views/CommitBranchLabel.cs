@@ -4,6 +4,7 @@ using System.Globalization;
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 
 namespace SourceGit.Views
@@ -100,18 +101,24 @@ namespace SourceGit.Views
 
         public Models.Decorator VisibleDecorator
         {
-            get => _groups.Count > 0 ? _groups[0].Decorator : null;
+            get => VisibleGroup?.Decorator;
         }
 
         public List<Models.Decorator> HiddenDecorators
         {
-            get
-            {
-                var hidden = new List<Models.Decorator>();
-                for (var i = 1; i < _groups.Count; i++)
-                    hidden.Add(_groups[i].Decorator);
-                return hidden;
-            }
+            get => HiddenGroups.ConvertAll(g => g.Decorator);
+        }
+
+        // The group drawn on the pill (its RemoteDecorators are the remotes merged into it), or null.
+        public Models.DecoratorGroup VisibleGroup
+        {
+            get => _groups.Count > 0 ? _groups[0] : null;
+        }
+
+        // The groups behind the +N chip, in display order.
+        public List<Models.DecoratorGroup> HiddenGroups
+        {
+            get => _groups.Count > 1 ? _groups.GetRange(1, _groups.Count - 1) : [];
         }
 
         public HitPart HitTest(Point p)
@@ -145,11 +152,12 @@ namespace SourceGit.Views
             {
                 context.DrawRectangle(_pillBrush, null, new RoundedRect(_pillRect, new CornerRadius(9)));
 
+                var pillFg = _pillForeground;
                 var x = _pillRect.X + PillPadding;
                 if (_leadingIcon != null)
                 {
-                    using (context.PushTransform(Matrix.CreateTranslation(x, cy - 5)))
-                        context.DrawGeometry(fg, null, _leadingIcon);
+                    using (context.PushTransform(Matrix.CreateTranslation(x, cy - IconSize * 0.5)))
+                        context.DrawGeometry(pillFg, null, _leadingIcon);
                     x += IconSize + IconGap;
                 }
 
@@ -160,12 +168,19 @@ namespace SourceGit.Views
                     x += _textWidth;
                 }
 
-                foreach (var icon in _trailingIcons)
+                foreach (var item in _trailing)
                 {
                     x += IconGap;
-                    using (context.PushTransform(Matrix.CreateTranslation(x, cy - 5)))
-                        context.DrawGeometry(fg, null, icon);
+                    using (context.PushTransform(Matrix.CreateTranslation(x, cy - IconSize * 0.5)))
+                        context.DrawGeometry(pillFg, null, item.Icon);
                     x += IconSize;
+
+                    if (item.Text != null)
+                    {
+                        x += RemoteNameGap;
+                        context.DrawText(item.Text, new Point(x, cy - item.Text.Height * 0.5));
+                        x += item.Text.WidthIncludingTrailingWhitespace;
+                    }
                 }
             }
 
@@ -177,10 +192,7 @@ namespace SourceGit.Views
 
             var lineStart = _hasChip ? _chipRect.Right : (_hasPill ? _pillRect.Right : Bounds.Width);
             if (lineStart < Bounds.Width)
-            {
-                var pen = new Pen(_lineBrush, 2, DashStyle.Dash);
-                context.DrawLine(pen, new Point(lineStart, cy), new Point(Bounds.Width, cy));
-            }
+                context.DrawLine(_linePen, new Point(lineStart, cy), new Point(Bounds.Width, cy));
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -188,7 +200,8 @@ namespace SourceGit.Views
             base.OnPropertyChanged(change);
 
             if (change.Property == ShowTagsProperty ||
-                change.Property == UseCompactBranchNamesProperty)
+                change.Property == UseCompactBranchNamesProperty ||
+                change.Property == IsVisibleProperty)
             {
                 RebuildGroups();
             }
@@ -212,14 +225,64 @@ namespace SourceGit.Views
             RebuildGroups();
         }
 
+        protected override void OnPointerMoved(PointerEventArgs e)
+        {
+            base.OnPointerMoved(e);
+
+            // Only the pill carries the tooltip; the dashed line and the +N chip don't.
+            var tip = HitTest(e.GetPosition(this)) == HitPart.Label ? _toolTip : null;
+            if (!ReferenceEquals(ToolTip.GetTip(this), tip))
+                ToolTip.SetTip(this, tip);
+        }
+
+        protected override void OnPointerExited(PointerEventArgs e)
+        {
+            base.OnPointerExited(e);
+
+            if (ToolTip.GetTip(this) != null)
+                ToolTip.SetTip(this, null);
+        }
+
         private void RebuildGroups()
         {
+            // Hidden in Classic style: don't spend any work on rows nobody sees. A rebuild runs
+            // again when the label becomes visible.
+            if (!IsVisible)
+            {
+                if (_groups.Count > 0)
+                {
+                    _groups = [];
+                    _toolTip = null;
+                    _layoutDirty = true;
+                }
+
+                return;
+            }
+
             if (DataContext is Models.Commit commit)
                 _groups = Models.DecoratorGroup.Build(commit.Decorators, ShowTags, UseCompactBranchNames);
             else
                 _groups = [];
 
-            ToolTip.SetTip(this, _groups.Count > 0 ? _groups[0].Decorator.Name : null);
+            _toolTip = null;
+            if (_groups.Count > 0)
+            {
+                var group = _groups[0];
+                if (group.RemoteDecorators.Count == 0)
+                {
+                    _toolTip = group.Decorator.Name;
+                }
+                else
+                {
+                    var names = new List<string>() { group.Decorator.Name };
+                    foreach (var remote in group.RemoteDecorators)
+                        names.Add(remote.Name);
+                    _toolTip = string.Join(Environment.NewLine, names);
+                }
+            }
+
+            if (ToolTip.GetTip(this) != null)
+                ToolTip.SetTip(this, null);
 
             _layoutDirty = true;
             InvalidateVisual();
@@ -236,7 +299,7 @@ namespace SourceGit.Views
             _text = null;
             _textWidth = 0;
             _leadingIcon = null;
-            _trailingIcons.Clear();
+            _trailing.Clear();
 
             if (_groups.Count == 0 || DataContext is not Models.Commit commit)
                 return;
@@ -246,11 +309,23 @@ namespace SourceGit.Views
             var fg = Foreground;
             var fontSize = FontSize;
             var typeface = new Typeface(FontFamily);
-            var laneBrush = UseGraphColor ? Models.CommitGraph.Pens[commit.Color].Brush : Brushes.Gray;
             var group = _groups[0];
 
-            _lineBrush = laneBrush;
-            _pillBrush = group.Decorator.Type == Models.DecoratorType.Tag ? Brushes.Gray : laneBrush;
+            // Dimmed rows use the same translucent gray as dimmed lanes; the text keeps the theme
+            // foreground there since the pill color depends on what is underneath. Solid pills pick
+            // black or white text, whichever contrasts more with the pill color.
+            if (UseGraphColor)
+            {
+                _linePen = Models.CommitGraph.DashedPens[commit.Color];
+                _pillBrush = group.Decorator.Type == Models.DecoratorType.Tag ? Brushes.Gray : Models.CommitGraph.Pens[commit.Color].Brush;
+                _pillForeground = ContrastingForeground(_pillBrush);
+            }
+            else
+            {
+                _linePen = CommitGraph.DimmedDashedPen;
+                _pillBrush = CommitGraph.DimmedBrush;
+                _pillForeground = fg;
+            }
 
             // Right-aligned: [pill][gap][+N chip][right padding]
             var right = width - RightPadding;
@@ -274,12 +349,40 @@ namespace SourceGit.Views
             if (available < PillPadding * 2)
                 return;
 
+            var pillFg = _pillForeground;
             var leadingIcon = CommitRefsIconCache.Instance.GetIcon(group.Decorator.Type);
-            var trailingIcons = new List<Geometry>();
-            if (group.IsLocal)
-                trailingIcons.Add(LocalIcon);
-            if (group.IsRemote)
-                trailingIcons.Add(CommitRefsIconCache.Instance.GetIcon(Models.DecoratorType.RemoteBranchHead));
+
+            // Trailing marks only add what the leading icon doesn't already say: a laptop for local
+            // branches (not for detached HEAD) and a cloud per merged remote (not for remote-only
+            // refs, whose leading icon is the cloud). With several remotes configured the remote
+            // name follows each cloud, like CommitRefsPresenter does in compact mode.
+            var trailing = new List<TrailingItem>();
+            if (group.Decorator.Type is Models.DecoratorType.CurrentBranchHead or Models.DecoratorType.LocalBranchHead)
+                trailing.Add(new TrailingItem(LocalIcon, null));
+
+            if (group.Remotes.Count > 0)
+            {
+                var remoteIcon = CommitRefsIconCache.Instance.GetIcon(Models.DecoratorType.RemoteBranchHead);
+                if (HasSingleRemote)
+                {
+                    trailing.Add(new TrailingItem(remoteIcon, null));
+                }
+                else
+                {
+                    var remoteTypeface = new Typeface(FontFamily, FontStyle.Italic, FontWeight.Bold);
+                    foreach (var remote in group.Remotes)
+                    {
+                        var remoteText = new FormattedText(
+                            remote,
+                            CultureInfo.CurrentCulture,
+                            FlowDirection.LeftToRight,
+                            remoteTypeface,
+                            fontSize,
+                            pillFg);
+                        trailing.Add(new TrailingItem(remoteIcon, remoteText));
+                    }
+                }
+            }
 
             var label = new FormattedText(
                 group.Decorator.Name,
@@ -287,22 +390,22 @@ namespace SourceGit.Views
                 FlowDirection.LeftToRight,
                 group.IsHead ? new Typeface(FontFamily, FontStyle.Normal, FontWeight.Bold) : typeface,
                 fontSize,
-                fg);
+                pillFg);
 
             var naturalTextWidth = label.WidthIncludingTrailingWhitespace;
-            var textMax = available - FixedWidth(leadingIcon != null, trailingIcons.Count);
+            var textMax = available - FixedWidth(leadingIcon != null, trailing);
 
-            // Not enough room: give the text more space by dropping trailing icons, then the leading icon.
-            while (textMax < naturalTextWidth && textMax < MinTextWidth && trailingIcons.Count > 0)
+            // Not enough room: give the text more space by dropping trailing marks, then the leading icon.
+            while (textMax < naturalTextWidth && textMax < MinTextWidth && trailing.Count > 0)
             {
-                trailingIcons.RemoveAt(trailingIcons.Count - 1);
-                textMax = available - FixedWidth(leadingIcon != null, trailingIcons.Count);
+                trailing.RemoveAt(trailing.Count - 1);
+                textMax = available - FixedWidth(leadingIcon != null, trailing);
             }
 
             if (textMax < naturalTextWidth && textMax < MinTextWidth && leadingIcon != null)
             {
                 leadingIcon = null;
-                textMax = available - FixedWidth(false, trailingIcons.Count);
+                textMax = available - FixedWidth(false, trailing);
             }
 
             textMax = Math.Max(0, textMax);
@@ -320,19 +423,47 @@ namespace SourceGit.Views
 
             _text = label;
             _leadingIcon = leadingIcon;
-            _trailingIcons.AddRange(trailingIcons);
+            _trailing.AddRange(trailing);
 
-            var pillWidth = FixedWidth(leadingIcon != null, trailingIcons.Count) + _textWidth;
+            var pillWidth = FixedWidth(leadingIcon != null, trailing) + _textWidth;
             _pillRect = new Rect(right - pillWidth, cy - PillHeight * 0.5, pillWidth, PillHeight);
             _hasPill = true;
         }
 
-        private static double FixedWidth(bool hasLeadingIcon, int trailingIconCount)
+        private static double FixedWidth(bool hasLeadingIcon, List<TrailingItem> trailing)
         {
-            var w = PillPadding * 2 + trailingIconCount * (IconGap + IconSize);
+            var w = PillPadding * 2;
+            foreach (var item in trailing)
+                w += item.Width;
             if (hasLeadingIcon)
                 w += IconSize + IconGap;
             return w;
+        }
+
+        // Black or white, whichever has the higher WCAG contrast ratio against the pill color.
+        private static IBrush ContrastingForeground(IBrush pill)
+        {
+            if (pill is not ISolidColorBrush solid)
+                return Brushes.White;
+
+            var c = solid.Color;
+            var l = 0.2126 * Linearize(c.R) + 0.7152 * Linearize(c.G) + 0.0722 * Linearize(c.B);
+
+            // (l + 0.05) / 0.05 > 1.05 / (l + 0.05)  <=>  l > ~0.179
+            return l > 0.179 ? Brushes.Black : Brushes.White;
+        }
+
+        private static double Linearize(byte channel)
+        {
+            var v = channel / 255.0;
+            return v <= 0.04045 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4);
+        }
+
+        private class TrailingItem(Geometry icon, FormattedText text)
+        {
+            public Geometry Icon { get; } = icon;
+            public FormattedText Text { get; } = text;
+            public double Width { get; } = IconGap + IconSize + (text != null ? RemoteNameGap + text.WidthIncludingTrailingWhitespace : 0);
         }
 
         private static Geometry LocalIcon
@@ -366,6 +497,7 @@ namespace SourceGit.Views
         private const double RightPadding = 6;
         private const double LeftPadding = 4;
         private const double MinTextWidth = 16;
+        private const double RemoteNameGap = 2;
 
         private static Geometry _localIcon = null;
 
@@ -379,8 +511,10 @@ namespace SourceGit.Views
         private FormattedText _chipText = null;
         private double _textWidth = 0;
         private Geometry _leadingIcon = null;
-        private List<Geometry> _trailingIcons = [];
+        private List<TrailingItem> _trailing = [];
         private IBrush _pillBrush = Brushes.Gray;
-        private IBrush _lineBrush = Brushes.Gray;
+        private IBrush _pillForeground = Brushes.White;
+        private IPen _linePen = CommitGraph.DimmedDashedPen;
+        private string _toolTip = null;
     }
 }

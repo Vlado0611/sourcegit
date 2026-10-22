@@ -8,6 +8,7 @@ namespace SourceGit.Models
     {
         public Decorator Decorator { get; set; } = null;
         public List<string> Remotes { get; } = [];
+        public List<Decorator> RemoteDecorators { get; } = [];
 
         public bool IsLocal => Decorator.Type is DecoratorType.CurrentBranchHead or DecoratorType.LocalBranchHead or DecoratorType.CurrentCommitHead;
         public bool IsRemote => Decorator.Type == DecoratorType.RemoteBranchHead || Remotes.Count > 0;
@@ -21,7 +22,7 @@ namespace SourceGit.Models
 
             var count = decorators.Count;
             var skipped = new HashSet<int>();
-            var remotesOf = new Dictionary<int, List<string>>();
+            var remotesOf = new Dictionary<int, List<int>>();
 
             // Pass 1: find remotes to merge into local branches (scan all entries, so a remote
             // listed before its local still merges).
@@ -45,7 +46,7 @@ namespace SourceGit.Models
                     {
                         if (!remotesOf.TryGetValue(i, out var list))
                             remotesOf[i] = list = [];
-                        list.Add(test.Name.Substring(0, idxOfSlash));
+                        list.Add(j);
                         skipped.Add(j);
                     }
                 }
@@ -65,7 +66,14 @@ namespace SourceGit.Models
                 groups.Add(group);
 
                 if (remotesOf.TryGetValue(i, out var remotes))
-                    group.Remotes.AddRange(remotes);
+                {
+                    foreach (var j in remotes)
+                    {
+                        var remote = decorators[j];
+                        group.Remotes.Add(remote.Name.Substring(0, remote.Name.IndexOf('/')));
+                        group.RemoteDecorators.Add(remote);
+                    }
+                }
             }
 
             // OrderBy is stable: head -> local -> remote -> tag, git's order kept within a bucket.
