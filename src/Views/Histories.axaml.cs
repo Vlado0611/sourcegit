@@ -357,6 +357,18 @@ namespace SourceGit.Views
             set => SetAndRaise(IsScrollToTopVisibleProperty, ref _isScrollToTopVisible, value);
         }
 
+        public static readonly DirectProperty<Histories, double> BranchColumnActualWidthProperty =
+            AvaloniaProperty.RegisterDirect<Histories, double>(
+                nameof(BranchColumnActualWidth),
+                static o => o.BranchColumnActualWidth,
+                static (o, v) => o.BranchColumnActualWidth = v);
+
+        public double BranchColumnActualWidth
+        {
+            get => _branchColumnActualWidth;
+            set => SetAndRaise(BranchColumnActualWidthProperty, ref _branchColumnActualWidth, value);
+        }
+
         public static readonly DirectProperty<Histories, bool> IsDetailsPanelExpandedProperty =
             AvaloniaProperty.RegisterDirect<Histories, bool>(
                 nameof(IsDetailsPanelExpanded),
@@ -477,7 +489,10 @@ namespace SourceGit.Views
             base.OnDataContextChanged(e);
 
             if (DataContext is ViewModels.Histories vm)
+            {
                 CommitListContainer.Columns[1].Width = new(vm.AuthorColumnWidth, DataGridLengthUnitType.Pixel);
+                UpdateBranchColumnActualWidth(vm);
+            }
         }
 
         private void OnCommitListHeaderPointerMoved(object sender, PointerEventArgs e)
@@ -494,6 +509,7 @@ namespace SourceGit.Views
                 var maxW = CommitListContainer.Columns[0].ActualWidth - 100;
                 var w = Math.Max(Math.Min(pos.X, maxW), 60);
                 vm.BranchColumnWidth = w;
+                BranchColumnActualWidth = w;
                 return;
             }
 
@@ -513,7 +529,7 @@ namespace SourceGit.Views
             {
                 var dis = CommitListContainer.Columns[0].ActualWidth - 4 - pos.X;
                 var onAuthorEdge = vm.IsAuthorColumnVisible && dis < 4 && dis > -4;
-                if (onAuthorEdge || IsOnBranchColumnEdge(vm, pos))
+                if (onAuthorEdge || IsOnBranchColumnEdge(pos))
                 {
                     if (border.Cursor != _resizingCursor)
                         border.Cursor = _resizingCursor;
@@ -531,7 +547,7 @@ namespace SourceGit.Views
                 return;
 
             var pos = e.GetPosition(border);
-            if (DataContext is ViewModels.Histories vm && IsOnBranchColumnEdge(vm, pos))
+            if (IsOnBranchColumnEdge(pos))
             {
                 if (e.GetCurrentPoint(border).Properties.IsLeftButtonPressed)
                 {
@@ -564,13 +580,22 @@ namespace SourceGit.Views
             return ViewModels.Preferences.Instance.GraphStyle == Models.GraphStyle.BranchColumn;
         }
 
-        private static bool IsOnBranchColumnEdge(ViewModels.Histories vm, Point pos)
+        private bool IsOnBranchColumnEdge(Point pos)
         {
             if (!IsBranchColumnStyle())
                 return false;
 
-            var dis = vm.BranchColumnWidth - pos.X;
+            var dis = BranchColumnActualWidth - pos.X;
             return dis < 4 && dis > -4;
+        }
+
+        // The stored width is kept as-is; the effective width shrinks so the graph+subject area keeps
+        // at least 100px (but never below the 60px minimum), and grows back when there's room again.
+        private void UpdateBranchColumnActualWidth(ViewModels.Histories vm)
+        {
+            var stored = vm.BranchColumnWidth;
+            var colWidth = CommitListContainer.Columns[0].ActualWidth;
+            BranchColumnActualWidth = colWidth > 0 ? Math.Min(stored, Math.Max(60, colWidth - 100)) : stored;
         }
 
         private void OnOpenAdvancedOptions(object sender, RoutedEventArgs e)
@@ -838,7 +863,8 @@ namespace SourceGit.Views
             var offsetX = 0.0;
             if (IsBranchColumnStyle() && DataContext is ViewModels.Histories vm)
             {
-                offsetX = vm.BranchColumnWidth;
+                UpdateBranchColumnActualWidth(vm);
+                offsetX = BranchColumnActualWidth;
                 clipWidth = Math.Max(0, clipWidth - offsetX);
             }
 
@@ -2035,6 +2061,7 @@ namespace SourceGit.Views
         private bool _isDetailsPanelExpanded = true;
         private bool _resizingAuthorColumn = false;
         private bool _resizingBranchColumn = false;
+        private double _branchColumnActualWidth = 160;
         private Cursor _resizingCursor = new(StandardCursorType.SizeWestEast);
     }
 }
