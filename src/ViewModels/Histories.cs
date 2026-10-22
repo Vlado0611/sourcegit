@@ -171,6 +171,12 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _hasSingleRemote, value);
         }
 
+        public HashSet<string> BitbucketRemotes
+        {
+            get => _bitbucketRemotes;
+            set => SetProperty(ref _bitbucketRemotes, value ?? []);
+        }
+
         public AvaloniaList<Models.IssueTracker> IssueTrackers
         {
             get => _repo.IssueTrackers;
@@ -598,6 +604,7 @@ namespace SourceGit.ViewModels
         private Repository _repo = null;
         private Models.Branch _currentBranch = null;
         private bool _hasSingleRemote = false;
+        private HashSet<string> _bitbucketRemotes = [];
         private CommitDetailSharedData _commitDetailSharedData = null;
         private bool _isLoading = true;
         private List<Models.Commit> _commits = [];

@@ -137,7 +137,20 @@ namespace SourceGit.ViewModels
                 if (SetProperty(ref _remotes, value))
                 {
                     if (_histories != null)
+                    {
                         _histories.HasSingleRemote = value != null && value.Count == 1;
+
+                        var bitbucket = new HashSet<string>();
+                        if (value != null)
+                        {
+                            foreach (var remote in value)
+                            {
+                                if (Models.Remote.IsBitbucketOrg(remote.URL))
+                                    bitbucket.Add(remote.Name);
+                            }
+                        }
+                        _histories.BitbucketRemotes = bitbucket;
+                    }
                 }
             }
         }

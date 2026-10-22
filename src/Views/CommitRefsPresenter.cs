@@ -25,6 +25,7 @@ namespace SourceGit.Views
             _head = LoadIcon("Icons.Head");
             _branch = LoadIcon("Icons.Branch");
             _remote = LoadIcon("Icons.Remote");
+            _bitbucket = LoadIcon("Icons.Bitbucket");
             _tag = LoadIcon("Icons.Tag");
         }
 
@@ -39,6 +40,15 @@ namespace SourceGit.Views
                 Models.DecoratorType.Tag => _tag,
                 _ => null,
             };
+        }
+
+        public Geometry Bitbucket => _bitbucket;
+
+        public Geometry GetRemoteIcon(string remoteName, HashSet<string> bitbucketRemotes)
+        {
+            if (remoteName != null && bitbucketRemotes != null && bitbucketRemotes.Contains(remoteName))
+                return _bitbucket;
+            return _remote;
         }
 
         private Geometry LoadIcon(string resourceKey)
@@ -61,6 +71,7 @@ namespace SourceGit.Views
         private Geometry _head = null;
         private Geometry _branch = null;
         private Geometry _remote = null;
+        private Geometry _bitbucket = null;
         private Geometry _tag = null;
     }
 
@@ -74,6 +85,7 @@ namespace SourceGit.Views
             public bool IsHead { get; set; } = false;
             public double Width { get; set; } = 0.0;
             public List<FormattedText> Remotes { get; set; } = [];
+            public List<string> RemoteNames { get; set; } = [];
         }
 
         public static readonly StyledProperty<FontFamily> FontFamilyProperty =
@@ -130,6 +142,15 @@ namespace SourceGit.Views
             set => SetValue(HasSingleRemoteProperty, value);
         }
 
+        public static readonly StyledProperty<HashSet<string>> BitbucketRemotesProperty =
+            AvaloniaProperty.Register<CommitRefsPresenter, HashSet<string>>(nameof(BitbucketRemotes));
+
+        public HashSet<string> BitbucketRemotes
+        {
+            get => GetValue(BitbucketRemotesProperty);
+            set => SetValue(BitbucketRemotesProperty, value);
+        }
+
         public static readonly StyledProperty<bool> UseGraphColorProperty =
             AvaloniaProperty.Register<CommitRefsPresenter, bool>(nameof(UseGraphColor));
 
@@ -181,7 +202,8 @@ namespace SourceGit.Views
             var allowWrap = AllowWrap;
             var x = 1.5;
             var y = 0.5;
-            var remoteIcon = CommitRefsIconCache.Instance.GetIcon(Models.DecoratorType.RemoteBranchHead);
+            var iconCache = CommitRefsIconCache.Instance;
+            var bitbucketRemotes = BitbucketRemotes;
             var hasSingleRemote = HasSingleRemote;
 
             context.FillRectangle(Brushes.Transparent, Bounds);
@@ -227,15 +249,16 @@ namespace SourceGit.Views
                     {
                         context.DrawLine(new Pen(item.Brush), new Point(rx, y), new Point(rx, y + 16));
                         using (context.PushTransform(Matrix.CreateTranslation(rx + 4, y + 4)))
-                            context.DrawGeometry(fg, null, remoteIcon);
+                            context.DrawGeometry(fg, null, iconCache.GetRemoteIcon(item.RemoteNames[0], bitbucketRemotes));
                     }
                     else
                     {
+                        var remoteIdx = 0;
                         foreach (var remote in item.Remotes)
                         {
                             context.DrawLine(new Pen(item.Brush), new Point(rx, y), new Point(rx, y + 16));
                             using (context.PushTransform(Matrix.CreateTranslation(rx + 4, y + 4)))
-                                context.DrawGeometry(fg, null, remoteIcon);
+                                context.DrawGeometry(fg, null, iconCache.GetRemoteIcon(item.RemoteNames[remoteIdx++], bitbucketRemotes));
                             context.DrawText(remote, new Point(rx + 16, y + 8.0 - remote.Height * 0.5));
                             rx += remote.WidthIncludingTrailingWhitespace + 22;
                         }
@@ -244,7 +267,14 @@ namespace SourceGit.Views
 
                 context.DrawRectangle(null, new Pen(item.Brush), entireRect);
 
-                var icon = CommitRefsIconCache.Instance.GetIcon(item.Decorator.Type);
+                var icon = iconCache.GetIcon(item.Decorator.Type);
+                if (item.Decorator.Type == Models.DecoratorType.RemoteBranchHead)
+                {
+                    var name = item.Decorator.Name;
+                    var slash = name.IndexOf('/');
+                    if (slash > 0)
+                        icon = iconCache.GetRemoteIcon(name.Substring(0, slash), bitbucketRemotes);
+                }
                 using (context.PushTransform(Matrix.CreateTranslation(x + 3, y + 3)))
                     context.DrawGeometry(fg, null, icon);
 
@@ -262,6 +292,7 @@ namespace SourceGit.Views
                 change.Property == UseGraphColorProperty ||
                 change.Property == UseCompactBranchNamesProperty ||
                 change.Property == HasSingleRemoteProperty ||
+                change.Property == BitbucketRemotesProperty ||
                 change.Property == BackgroundProperty ||
                 change.Property == ShowTagsProperty)
                 InvalidateMeasure();
@@ -367,6 +398,7 @@ namespace SourceGit.Views
                                 fg);
 
                             item.Remotes.Add(remote);
+                            item.RemoteNames.Add(test.Name.Substring(0, idxOfSlash));
 
                             if (hasSingleRemote)
                                 item.Width += 18;

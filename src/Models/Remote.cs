@@ -35,6 +35,41 @@ namespace SourceGit.Models
         public string PrivateSSHKey { get; set; }
         public bool DisableAutoFetch { get; set; }
 
+        public static bool IsBitbucketOrg(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+
+            string host;
+            var schemeIdx = url.IndexOf("://", StringComparison.Ordinal);
+            if (schemeIdx >= 0)
+            {
+                // https://[user@]host[:port]/path, ssh://[user@]host[:port]/path
+                var rest = url.Substring(schemeIdx + 3);
+                var slash = rest.IndexOf('/');
+                var authority = slash >= 0 ? rest.Substring(0, slash) : rest;
+                var at = authority.LastIndexOf('@');
+                if (at >= 0)
+                    authority = authority.Substring(at + 1);
+                var colon = authority.IndexOf(':');
+                host = colon >= 0 ? authority.Substring(0, colon) : authority;
+            }
+            else
+            {
+                // scp-style: [user@]host:path
+                var colon = url.IndexOf(':');
+                if (colon < 0)
+                    return false;
+
+                host = url.Substring(0, colon);
+                var at = host.LastIndexOf('@');
+                if (at >= 0)
+                    host = host.Substring(at + 1);
+            }
+
+            return host.Equals("bitbucket.org", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static bool IsSSH(string url)
         {
             if (string.IsNullOrWhiteSpace(url))

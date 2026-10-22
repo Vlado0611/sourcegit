@@ -90,6 +90,15 @@ namespace SourceGit.Views
             set => SetValue(HasSingleRemoteProperty, value);
         }
 
+        public static readonly StyledProperty<HashSet<string>> BitbucketRemotesProperty =
+            AvaloniaProperty.Register<CommitBranchLabel, HashSet<string>>(nameof(BitbucketRemotes));
+
+        public HashSet<string> BitbucketRemotes
+        {
+            get => GetValue(BitbucketRemotesProperty);
+            set => SetValue(BitbucketRemotesProperty, value);
+        }
+
         public static readonly StyledProperty<bool> UseGraphColorProperty =
             AvaloniaProperty.Register<CommitBranchLabel, bool>(nameof(UseGraphColor));
 
@@ -212,6 +221,7 @@ namespace SourceGit.Views
                 change.Property == ChipBrushProperty ||
                 change.Property == UseGraphColorProperty ||
                 change.Property == HasSingleRemoteProperty ||
+                change.Property == BitbucketRemotesProperty ||
                 change.Property == BoundsProperty)
             {
                 _layoutDirty = true;
@@ -350,7 +360,16 @@ namespace SourceGit.Views
                 return;
 
             var pillFg = _pillForeground;
-            var leadingIcon = CommitRefsIconCache.Instance.GetIcon(group.Decorator.Type);
+            var iconCache = CommitRefsIconCache.Instance;
+            var bitbucketRemotes = BitbucketRemotes;
+            var leadingIcon = iconCache.GetIcon(group.Decorator.Type);
+            if (group.Decorator.Type == Models.DecoratorType.RemoteBranchHead)
+            {
+                var decoratorName = group.Decorator.Name;
+                var slash = decoratorName.IndexOf('/');
+                if (slash > 0)
+                    leadingIcon = iconCache.GetRemoteIcon(decoratorName.Substring(0, slash), bitbucketRemotes);
+            }
 
             // Trailing marks only add what the leading icon doesn't already say: a laptop for local
             // branches (not for detached HEAD) and a cloud per merged remote (not for remote-only
@@ -362,10 +381,9 @@ namespace SourceGit.Views
 
             if (group.Remotes.Count > 0)
             {
-                var remoteIcon = CommitRefsIconCache.Instance.GetIcon(Models.DecoratorType.RemoteBranchHead);
                 if (HasSingleRemote)
                 {
-                    trailing.Add(new TrailingItem(remoteIcon, null));
+                    trailing.Add(new TrailingItem(iconCache.GetRemoteIcon(group.Remotes[0], bitbucketRemotes), null));
                 }
                 else
                 {
@@ -379,7 +397,7 @@ namespace SourceGit.Views
                             remoteTypeface,
                             fontSize,
                             pillFg);
-                        trailing.Add(new TrailingItem(remoteIcon, remoteText));
+                        trailing.Add(new TrailingItem(iconCache.GetRemoteIcon(remote, bitbucketRemotes), remoteText));
                     }
                 }
             }
