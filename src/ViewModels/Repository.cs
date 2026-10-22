@@ -149,7 +149,8 @@ namespace SourceGit.ViewModels
                                     bitbucket.Add(remote.Name);
                             }
                         }
-                        _histories.BitbucketRemotes = bitbucket;
+                        if (!bitbucket.SetEquals(_histories.BitbucketRemotes))
+                            _histories.BitbucketRemotes = bitbucket;
                     }
                 }
             }

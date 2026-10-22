@@ -273,6 +273,7 @@ namespace SourceGit.ViewModels
         public async Task SaveAsync()
         {
             _repo.Settings.Save();
+            _repo.RefreshToolbarCustomActions();
 
             await SetIfChangedAsync("user.name", UserName, "");
             await SetIfChangedAsync("user.email", UserEmail, "");
@@ -283,7 +284,6 @@ namespace SourceGit.ViewModels
             await SetIfChangedAsync("fetch.prune", EnablePruneOnFetch ? "true" : "false", "false");
 
             await ApplyIssueTrackerChangesAsync();
-            _repo.RefreshToolbarCustomActions();
         }
 
         private async Task SetIfChangedAsync(string key, string value, string defValue)

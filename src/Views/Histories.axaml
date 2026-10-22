@@ -150,7 +150,7 @@
                                              UseGraphColor="{Binding IsHighlightedInGraph, Mode=OneWay}"
                                              UseCompactBranchNames="{Binding Source={x:Static vm:Preferences.Instance}, Path=UseCompactBranchNamesInGraph}"
                                              HasSingleRemote="{Binding $parent[v:Histories].HasSingleRemote}"
-                                       BitbucketRemotes="{Binding $parent[v:Histories].((vm:Histories)DataContext).BitbucketRemotes}"/>
+                                             BitbucketRemotes="{Binding $parent[v:Histories].((vm:Histories)DataContext).BitbucketRemotes}"/>
 
                       <v:CommitSubjectPresenter Grid.Column="3"
                                                 Height="{Binding Source={x:Static vm:Preferences.Instance}, Path=GraphStyle, Converter={x:Static c:GraphStyleConverters.ToRowHeight}}"
