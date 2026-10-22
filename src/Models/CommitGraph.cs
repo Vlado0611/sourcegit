@@ -21,6 +21,10 @@ namespace SourceGit.Models
     {
         public static List<Pen> Pens { get; } = [];
 
+        // Fixed-width (2px) pens used by the branch-column style, rebuilt together with Pens.
+        public static List<Pen> SolidPens { get; } = [];
+        public static List<Pen> DashedPens { get; } = [];
+
         public static void SetDefaultPens(double thickness = 2)
         {
             SetPens(s_defaultPenColors, thickness);
@@ -30,8 +34,15 @@ namespace SourceGit.Models
         {
             Pens.Clear();
 
+            SolidPens.Clear();
+            DashedPens.Clear();
+
             foreach (var c in colors)
+            {
                 Pens.Add(new Pen(c.ToUInt32(), thickness));
+                SolidPens.Add(new Pen(c.ToUInt32(), 2));
+                DashedPens.Add(new Pen(c.ToUInt32(), 2, DashStyle.Dash));
+            }
 
             s_penCount = colors.Count;
         }

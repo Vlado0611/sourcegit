@@ -1,11 +1,21 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 
 namespace SourceGit.Views
 {
     public class CommitGraph : Control
     {
+        // Branch-column style geometry, shared with anything that needs to know where a circle ends.
+        public const double BranchColumnDotRadius = 9;
+        public const double BranchColumnHeadRingRadius = 13;
+
+        // Same translucent gray the dimmed lanes use (see DrawCurves).
+        public static readonly IBrush DimmedBrush = new ImmutableSolidColorBrush(Colors.Gray, 0.4);
+        public static readonly IPen DimmedSolidPen = new Pen(DimmedBrush, 2);
+        public static readonly IPen DimmedDashedPen = new Pen(DimmedBrush, 2, DashStyle.Dash);
+
         public static readonly DirectProperty<CommitGraph, Models.CommitGraph> GraphProperty =
             AvaloniaProperty.RegisterDirect<CommitGraph, Models.CommitGraph>(
                 nameof(Graph),
@@ -92,6 +102,9 @@ namespace SourceGit.Views
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
             base.OnPropertyChanged(change);
+
+            if (change.Property == HeadRingBrushProperty)
+                _headRingPen = null;
 
             if (change.Property == GraphProperty ||
                 change.Property == LayoutProperty ||
@@ -200,7 +213,6 @@ namespace SourceGit.Views
         private void DrawConnectors(DrawingContext context, Models.CommitGraph graph, double top, double bottom, double rowHeight)
         {
             var showTags = ShowTags;
-            var grayedPen = new Pen(Brushes.Gray, 2, DashStyle.Dash);
 
             foreach (var dot in graph.Dots)
             {
@@ -214,21 +226,26 @@ namespace SourceGit.Views
                 if (!dot.HasBranches && !(showTags && dot.HasTags))
                     continue;
 
-                var endX = center.X - 9;
+                var endX = center.X - BranchColumnDotRadius;
                 if (endX <= 0)
                     continue;
 
-                var pen = dot.IsHighlighted ? new Pen(Models.CommitGraph.Pens[dot.Color].Brush, 2, DashStyle.Dash) : grayedPen;
+                var pen = dot.IsHighlighted ? Models.CommitGraph.DashedPens[dot.Color] : DimmedDashedPen;
                 context.DrawLine(pen, new Point(0, center.Y), new Point(endX, center.Y));
             }
         }
 
         private void DrawAnchors(DrawingContext context, Models.CommitGraph graph, double top, double bottom, double rowHeight)
         {
+            if (GraphStyle == Models.GraphStyle.BranchColumn)
+            {
+                DrawBranchColumnAnchors(context, graph, top, bottom, rowHeight);
+                return;
+            }
+
             var dotFill = DotBrush;
             var dotFillPen = new Pen(dotFill, 2);
             var grayedPen = new Pen(Brushes.Gray, Models.CommitGraph.Pens[0].Thickness);
-            var isBranchColumn = GraphStyle == Models.GraphStyle.BranchColumn;
 
             foreach (var dot in graph.Dots)
             {
@@ -240,26 +257,6 @@ namespace SourceGit.Views
                     break;
 
                 var pen = dot.IsHighlighted ? Models.CommitGraph.Pens[dot.Color] : grayedPen;
-                if (isBranchColumn)
-                {
-                    if (dot.IsMerge)
-                    {
-                        context.DrawEllipse(dotFill, new Pen(pen.Brush, 2), center, 9, 9);
-                        var plusPen = new Pen(pen.Brush, 2);
-                        context.DrawLine(plusPen, new Point(center.X, center.Y - 4), new Point(center.X, center.Y + 4));
-                        context.DrawLine(plusPen, new Point(center.X - 4, center.Y), new Point(center.X + 4, center.Y));
-                    }
-                    else
-                    {
-                        context.DrawEllipse(pen.Brush, null, center, 9, 9);
-                    }
-
-                    if (dot.Type == Models.CommitGraph.DotType.Head)
-                        context.DrawEllipse(null, new Pen(HeadRingBrush, 2), center, 13, 13);
-
-                    continue;
-                }
-
                 switch (dot.Type)
                 {
                     case Models.CommitGraph.DotType.Head:
@@ -278,7 +275,48 @@ namespace SourceGit.Views
             }
         }
 
+        private void DrawBranchColumnAnchors(DrawingContext context, Models.CommitGraph graph, double top, double bottom, double rowHeight)
+        {
+            const double r = BranchColumnDotRadius;
+            const double plus = 4;
+
+            var dotFill = DotBrush;
+            _headRingPen ??= new Pen(HeadRingBrush, 2);
+
+            foreach (var dot in graph.Dots)
+            {
+                var center = new Point(dot.Center.X, dot.Center.Y * rowHeight);
+
+                if (center.Y < top)
+                    continue;
+                if (center.Y > bottom)
+                    break;
+
+                var pen = dot.IsHighlighted ? Models.CommitGraph.SolidPens[dot.Color] : DimmedSolidPen;
+                if (dot.IsMerge)
+                {
+                    context.DrawEllipse(dotFill, pen, center, r, r);
+                    context.DrawLine(pen, new Point(center.X, center.Y - plus), new Point(center.X, center.Y + plus));
+                    context.DrawLine(pen, new Point(center.X - plus, center.Y), new Point(center.X + plus, center.Y));
+                }
+                else if (dot.IsHighlighted)
+                {
+                    context.DrawEllipse(pen.Brush, null, center, r, r);
+                }
+                else
+                {
+                    // Opaque base first so lanes passing underneath don't show through the translucent gray.
+                    context.DrawEllipse(dotFill, null, center, r, r);
+                    context.DrawEllipse(DimmedBrush, null, center, r, r);
+                }
+
+                if (dot.Type == Models.CommitGraph.DotType.Head)
+                    context.DrawEllipse(null, _headRingPen, center, BranchColumnHeadRingRadius, BranchColumnHeadRingRadius);
+            }
+        }
+
         private Models.CommitGraph _graph = null;
         private Models.CommitGraphLayout _layout = null;
+        private IPen _headRingPen = null;
     }
 }
