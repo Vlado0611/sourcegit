@@ -4,6 +4,7 @@ using System.IO;
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 
@@ -107,14 +108,26 @@ namespace SourceGit.Views
 
             foreach (var kv in dict)
             {
-                if (kv.Key is string key && key.StartsWith("Icons.", StringComparison.Ordinal) && kv.Value is Geometry)
+                // Values may be deferred, so resolve them through the application instead of reading kv.Value.
+                if (kv.Key is string key &&
+                    key.StartsWith("Icons.", StringComparison.Ordinal) &&
+                    Application.Current.TryFindResource(key, out var value) &&
+                    value is Geometry)
                     keys.Add(key);
             }
 
             foreach (var child in dict.MergedDictionaries)
             {
-                if (child is IResourceDictionary d)
+                // ResourceInclude (and its subclass MergeResourceInclude) is not a dictionary; its content is in Loaded.
+                if (child is ResourceInclude include)
+                {
+                    if (include.Loaded is { } loaded)
+                        Collect(loaded, keys, visited);
+                }
+                else if (child is IResourceDictionary d)
+                {
                     Collect(d, keys, visited);
+                }
             }
         }
 
