@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:v="using:SourceGit.Views"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="28"
+             x:Class="SourceGit.Views.CustomActionIconPicker"
+             x:Name="ThisControl">
+  <Button x:Name="PickerButton" Classes="flat" Height="28" HorizontalAlignment="Left" Padding="10,0">
+    <Button.Flyout>
+      <Flyout Placement="BottomEdgeAlignedLeft">
+        <StackPanel Orientation="Vertical" Width="300">
+          <ScrollViewer Height="300" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="IconList">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Button Classes="icon_button" Width="28" Height="28" Tag="{Binding}" ToolTip.Tip="{Binding}" Click="OnIconClicked">
+                    <v:CustomActionIcon Width="14" Height="14" Icon="{Binding}" Foreground="{DynamicResource Brush.FG1}"/>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+            <Button Classes="flat" Height="28" Content="{DynamicResource Text.Configure.CustomAction.Icon.Default}" Click="OnDefaultClicked"/>
+            <Button Margin="8,0,0,0" Classes="flat" Height="28" Content="{DynamicResource Text.Configure.CustomAction.Icon.CustomFile}" Click="OnCustomFileClicked"/>
+          </StackPanel>
+        </StackPanel>
+      </Flyout>
+    </Button.Flyout>
+    <v:CustomActionIcon Width="14" Height="14" Icon="{Binding #ThisControl.Icon}" Foreground="{DynamicResource Brush.FG1}"/>
+  </Button>
+</UserControl>

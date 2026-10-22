@@ -2,6 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:c="using:SourceGit.Converters"
                     xmlns:m="using:SourceGit.Models"
                     xmlns:vm="using:SourceGit.ViewModels"
                     xmlns:v="using:SourceGit.Views"
@@ -480,6 +481,9 @@
                     <ComboBoxItem Content="{DynamicResource Text.Configure.CustomAction.Scope.File}"/>
                   </ComboBox>
 
+                  <TextBlock Margin="0,12,0,0" Text="{DynamicResource Text.Configure.CustomAction.Icon}"/>
+                  <v:CustomActionIconPicker Margin="0,4,0,0" Icon="{Binding Icon, Mode=TwoWay}"/>
+
                   <TextBlock Margin="0,12,0,0" Text="{DynamicResource Text.Configure.CustomAction.InputControls}"/>
                   <Button Margin="0,4,0,0" Classes="flat" Height="28" Click="EditCustomActionControls">
                     <StackPanel Orientation="Horizontal">
@@ -510,6 +514,7 @@
                   </TextBox>
 
                   <CheckBox Margin="0,8,0,0" Content="{DynamicResource Text.Configure.CustomAction.WaitForExit}" IsChecked="{Binding WaitForExit, Mode=TwoWay}"/>
+                  <CheckBox Margin="0,8,0,0" Content="{DynamicResource Text.Configure.CustomAction.ShowInToolbar}" IsChecked="{Binding ShowInToolbar, Mode=TwoWay}" IsVisible="{Binding Scope, Converter={x:Static c:CustomActionConverters.IsRepositoryScope}}"/>
                 </StackPanel>
               </DataTemplate>
             </ContentControl.DataTemplates>

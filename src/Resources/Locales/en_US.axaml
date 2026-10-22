@@ -237,6 +237,9 @@
   ${FILE} Selected file, relative to repository root
   $1, $2 ... Input control values</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Executable" xml:space="preserve">Executable File:</x:String>
+  <x:String x:Key="Text.Configure.CustomAction.Icon" xml:space="preserve">Icon:</x:String>
+  <x:String x:Key="Text.Configure.CustomAction.Icon.CustomFile" xml:space="preserve">Custom file…</x:String>
+  <x:String x:Key="Text.Configure.CustomAction.Icon.Default" xml:space="preserve">Default</x:String>
   <x:String x:Key="Text.Configure.CustomAction.InputControls" xml:space="preserve">Input Controls:</x:String>
   <x:String x:Key="Text.Configure.CustomAction.InputControls.Edit" xml:space="preserve">Edit</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Name" xml:space="preserve">Name:</x:String>
@@ -247,6 +250,7 @@
   <x:String x:Key="Text.Configure.CustomAction.Scope.Remote" xml:space="preserve">Remote</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Scope.Repository" xml:space="preserve">Repository</x:String>
   <x:String x:Key="Text.Configure.CustomAction.Scope.Tag" xml:space="preserve">Tag</x:String>
+  <x:String x:Key="Text.Configure.CustomAction.ShowInToolbar" xml:space="preserve">Show in toolbar</x:String>
   <x:String x:Key="Text.Configure.CustomAction.WaitForExit" xml:space="preserve">Wait for action exit</x:String>
   <x:String x:Key="Text.Configure.Email" xml:space="preserve">Email Address</x:String>
   <x:String x:Key="Text.Configure.Email.Placeholder" xml:space="preserve">Email address</x:String>
