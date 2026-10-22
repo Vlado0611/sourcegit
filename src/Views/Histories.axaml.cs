@@ -907,15 +907,20 @@ namespace SourceGit.Views
                 cbl.DataContext is Models.Commit labelCommit &&
                 e.TryGetPosition(cbl, out var labelPos) &&
                 cbl.HitTest(labelPos) == CommitBranchLabel.HitPart.Label &&
-                cbl.VisibleDecorator != null)
+                cbl.VisibleGroup is { } visibleGroup)
             {
                 var labelMenu = new ContextMenu();
-                FillDecoratorMenu(labelMenu, repo, labelCommit, cbl.VisibleDecorator);
-                if (labelMenu.Items.Count > 0)
-                    labelMenu.Open(cbl);
+                FillDecoratorMenu(labelMenu, repo, labelCommit, visibleGroup.Decorator);
+                foreach (var remote in visibleGroup.RemoteDecorators)
+                    FillDecoratorMenu(labelMenu, repo, labelCommit, remote);
 
-                e.Handled = true;
-                return;
+                // Nothing to offer for this ref (e.g. detached HEAD): fall through to the row menu.
+                if (labelMenu.Items.Count > 0)
+                {
+                    labelMenu.Open(cbl);
+                    e.Handled = true;
+                    return;
+                }
             }
 
             var selected = CommitListContainer.SelectedItems;
@@ -1222,12 +1227,42 @@ namespace SourceGit.Views
             if (repoView is not { DataContext: ViewModels.Repository repo } || label.DataContext is not Models.Commit commit)
                 return;
 
-            var menu = new ContextMenu();
-            foreach (var d in label.HiddenDecorators)
+            // One bucket per ref type, separated only between buckets. Remotes merged into a local
+            // branch's group are listed with the other remotes.
+            var branches = new List<Models.Decorator>();
+            var remotes = new List<Models.Decorator>();
+            var tags = new List<Models.Decorator>();
+            foreach (var group in label.HiddenGroups)
             {
-                if (menu.Items.Count > 0)
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                FillDecoratorMenu(menu, repo, commit, d);
+                switch (group.Decorator.Type)
+                {
+                    case Models.DecoratorType.RemoteBranchHead:
+                        remotes.Add(group.Decorator);
+                        break;
+                    case Models.DecoratorType.Tag:
+                        tags.Add(group.Decorator);
+                        break;
+                    default:
+                        branches.Add(group.Decorator);
+                        break;
+                }
+
+                remotes.AddRange(group.RemoteDecorators);
+            }
+
+            var menu = new ContextMenu();
+            foreach (var bucket in new[] { branches, remotes, tags })
+            {
+                var separator = menu.Items.Count > 0 ? new MenuItem() { Header = "-" } : null;
+                if (separator != null)
+                    menu.Items.Add(separator);
+
+                var before = menu.Items.Count;
+                foreach (var d in bucket)
+                    FillDecoratorMenu(menu, repo, commit, d);
+
+                if (separator != null && menu.Items.Count == before)
+                    menu.Items.Remove(separator);
             }
 
             if (menu.Items.Count > 0)
