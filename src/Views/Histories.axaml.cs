@@ -390,6 +390,7 @@ namespace SourceGit.Views
         {
             base.OnAttachedToVisualTree(e);
             ViewModels.Preferences.Instance.PropertyChanged += OnPreferencesPropertyChanged;
+            RegenerateGraphIfStyleChanged();
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -492,7 +493,17 @@ namespace SourceGit.Views
             {
                 CommitListContainer.Columns[1].Width = new(vm.AuthorColumnWidth, DataGridLengthUnitType.Pixel);
                 UpdateBranchColumnActualWidth(vm);
+                RegenerateGraphIfStyleChanged();
             }
+        }
+
+        // The style may have been switched while this repository's history wasn't shown
+        // (only attached views listen for the preference change).
+        private void RegenerateGraphIfStyleChanged()
+        {
+            if (DataContext is ViewModels.Histories { Graph: not null } vm &&
+                vm.Graph.Style != ViewModels.Preferences.Instance.GraphStyle)
+                vm.RegenerateGraph();
         }
 
         private void OnCommitListHeaderPointerMoved(object sender, PointerEventArgs e)
@@ -557,6 +568,9 @@ namespace SourceGit.Views
 
                 return;
             }
+
+            if (DataContext is not ViewModels.Histories { IsAuthorColumnVisible: true })
+                return;
 
             var dis = CommitListContainer.Columns[0].ActualWidth - 4 - pos.X;
             if (dis > 4 || dis < -4)
@@ -826,7 +840,7 @@ namespace SourceGit.Views
 
         private void OnPreferencesPropertyChanged(object _, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == "GraphStyle" && DataContext is ViewModels.Histories vm)
+            if (e.PropertyName == nameof(ViewModels.Preferences.GraphStyle) && DataContext is ViewModels.Histories vm)
                 vm.RegenerateGraph();
         }
 

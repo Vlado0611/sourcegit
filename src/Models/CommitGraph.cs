@@ -84,6 +84,7 @@ namespace SourceGit.Models
         public List<Path> Paths { get; } = [];
         public List<Link> Links { get; } = [];
         public List<Dot> Dots { get; } = [];
+        public GraphStyle Style { get; private set; } = GraphStyle.Classic;
 
         public static CommitGraph Generate(List<Commit> commits, bool firstParentOnlyEnabled, CommitGraphHighlighting highlighting, HashSet<string> highlightExtraCommits, GraphStyle style)
         {
@@ -94,7 +95,7 @@ namespace SourceGit.Models
             const double unitHeight = 1;
             const double halfHeight = 0.5;
 
-            var temp = new CommitGraph();
+            var temp = new CommitGraph() { Style = style };
             var unsolved = new List<PathHelper>();
             var ended = new List<PathHelper>();
             var offsetY = -halfHeight;
