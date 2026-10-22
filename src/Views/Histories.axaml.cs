@@ -889,6 +889,21 @@ namespace SourceGit.Views
             if (repoView is not { DataContext: ViewModels.Repository repo })
                 return;
 
+            if (e.Source is CommitBranchLabel cbl &&
+                cbl.DataContext is Models.Commit labelCommit &&
+                e.TryGetPosition(cbl, out var labelPos) &&
+                cbl.HitTest(labelPos) == CommitBranchLabel.HitPart.Label &&
+                cbl.VisibleDecorator != null)
+            {
+                var labelMenu = new ContextMenu();
+                FillDecoratorMenu(labelMenu, repo, labelCommit, cbl.VisibleDecorator);
+                if (labelMenu.Items.Count > 0)
+                    labelMenu.Open(cbl);
+
+                e.Handled = true;
+                return;
+            }
+
             var selected = CommitListContainer.SelectedItems;
             if (selected is not { Count: > 0 })
                 return;
@@ -934,6 +949,19 @@ namespace SourceGit.Views
                     var succ = await histories.CheckoutBranchByDecoratorAsync(decorator);
                     if (succ)
                         return;
+                }
+                else if (e.Source is CommitBranchLabel cbl &&
+                    cbl.HitTest(e.GetPosition(cbl)) == CommitBranchLabel.HitPart.Label &&
+                    cbl.VisibleDecorator != null)
+                {
+                    var succ = await histories.CheckoutBranchByDecoratorAsync(cbl.VisibleDecorator);
+                    if (succ)
+                        return;
+                }
+                else if (e.Source is CommitBranchLabel more &&
+                    more.HitTest(e.GetPosition(more)) == CommitBranchLabel.HitPart.More)
+                {
+                    return;
                 }
 
                 await histories.CheckoutBranchByCommitAsync(c);
@@ -1140,6 +1168,58 @@ namespace SourceGit.Views
             return menu;
         }
 
+        private void FillDecoratorMenu(ContextMenu menu, ViewModels.Repository repo, Models.Commit commit, Models.Decorator decorator)
+        {
+            var current = repo.CurrentBranch;
+            if (current == null)
+                return;
+
+            switch (decorator.Type)
+            {
+                case Models.DecoratorType.CurrentBranchHead:
+                    FillCurrentBranchMenu(menu, repo, current);
+                    break;
+                case Models.DecoratorType.LocalBranchHead:
+                    var lb = repo.Branches.Find(x => x.IsLocal && decorator.Name.Equals(x.Name, StringComparison.Ordinal));
+                    FillOtherLocalBranchMenu(menu, repo, lb, current, commit.IsMerged);
+                    break;
+                case Models.DecoratorType.RemoteBranchHead:
+                    var rb = repo.Branches.Find(x => !x.IsLocal && decorator.Name.Equals(x.FriendlyName, StringComparison.Ordinal));
+                    FillRemoteBranchMenu(menu, repo, rb, current, commit.IsMerged);
+                    break;
+                case Models.DecoratorType.Tag:
+                    var t = repo.Tags.Find(x => decorator.Name.Equals(x.Name, StringComparison.Ordinal));
+                    if (t != null)
+                        FillTagMenu(menu, repo, t, current);
+                    break;
+            }
+        }
+
+        private void OnBranchLabelPointerPressed(object sender, PointerPressedEventArgs e)
+        {
+            if (sender is not CommitBranchLabel label ||
+                !e.GetCurrentPoint(label).Properties.IsLeftButtonPressed ||
+                label.HitTest(e.GetPosition(label)) != CommitBranchLabel.HitPart.More)
+                return;
+
+            e.Handled = true;
+
+            var repoView = this.FindAncestorOfType<Repository>();
+            if (repoView is not { DataContext: ViewModels.Repository repo } || label.DataContext is not Models.Commit commit)
+                return;
+
+            var menu = new ContextMenu();
+            foreach (var d in label.HiddenDecorators)
+            {
+                if (menu.Items.Count > 0)
+                    menu.Items.Add(new MenuItem() { Header = "-" });
+                FillDecoratorMenu(menu, repo, commit, d);
+            }
+
+            if (menu.Items.Count > 0)
+                menu.Open(label);
+        }
+
         private ContextMenu CreateContextMenuForSingleCommit(ViewModels.Repository repo, Models.Commit commit)
         {
             var current = repo.CurrentBranch;
@@ -1155,24 +1235,15 @@ namespace SourceGit.Views
             {
                 foreach (var d in commit.Decorators)
                 {
-                    switch (d.Type)
+                    if (d.Type == Models.DecoratorType.Tag)
                     {
-                        case Models.DecoratorType.CurrentBranchHead:
-                            FillCurrentBranchMenu(menu, repo, current);
-                            break;
-                        case Models.DecoratorType.LocalBranchHead:
-                            var lb = repo.Branches.Find(x => x.IsLocal && d.Name.Equals(x.Name, StringComparison.Ordinal));
-                            FillOtherLocalBranchMenu(menu, repo, lb, current, commit.IsMerged);
-                            break;
-                        case Models.DecoratorType.RemoteBranchHead:
-                            var rb = repo.Branches.Find(x => !x.IsLocal && d.Name.Equals(x.FriendlyName, StringComparison.Ordinal));
-                            FillRemoteBranchMenu(menu, repo, rb, current, commit.IsMerged);
-                            break;
-                        case Models.DecoratorType.Tag:
-                            var t = repo.Tags.Find(x => d.Name.Equals(x.Name, StringComparison.Ordinal));
-                            if (t != null)
-                                tags.Add(t);
-                            break;
+                        var t = repo.Tags.Find(x => d.Name.Equals(x.Name, StringComparison.Ordinal));
+                        if (t != null)
+                            tags.Add(t);
+                    }
+                    else
+                    {
+                        FillDecoratorMenu(menu, repo, commit, d);
                     }
                 }
 

@@ -114,6 +114,7 @@
               <DataTemplate DataType="m:Commit">
                 <Grid ColumnDefinitions="Auto,*">
                   <v:CommitBranchLabel Grid.Column="0"
+                                       PointerPressed="OnBranchLabelPointerPressed"
                                        Width="{Binding $parent[v:Histories].BranchColumnActualWidth}"
                                        IsVisible="{Binding Source={x:Static vm:Preferences.Instance}, Path=GraphStyle, Converter={x:Static c:GraphStyleConverters.IsBranchColumn}}"
                                        FontFamily="{DynamicResource Fonts.Default}"
