@@ -485,10 +485,21 @@ namespace SourceGit.Views
             if (sender is not Border border)
                 return;
 
-            if (DataContext is not ViewModels.Histories { IsAuthorColumnVisible: true } vm)
+            if (DataContext is not ViewModels.Histories vm)
                 return;
 
             var pos = e.GetPosition(border);
+            if (_resizingBranchColumn)
+            {
+                var maxW = CommitListContainer.Columns[0].ActualWidth - 100;
+                var w = Math.Max(Math.Min(pos.X, maxW), 60);
+                vm.BranchColumnWidth = w;
+                return;
+            }
+
+            if (!vm.IsAuthorColumnVisible && !IsBranchColumnStyle())
+                return;
+
             if (_resizingAuthorColumn)
             {
                 var posX = CommitListContainer.Columns[0].ActualWidth;
@@ -501,7 +512,8 @@ namespace SourceGit.Views
             else
             {
                 var dis = CommitListContainer.Columns[0].ActualWidth - 4 - pos.X;
-                if (dis < 4 && dis > -4)
+                var onAuthorEdge = vm.IsAuthorColumnVisible && dis < 4 && dis > -4;
+                if (onAuthorEdge || IsOnBranchColumnEdge(vm, pos))
                 {
                     if (border.Cursor != _resizingCursor)
                         border.Cursor = _resizingCursor;
@@ -519,6 +531,17 @@ namespace SourceGit.Views
                 return;
 
             var pos = e.GetPosition(border);
+            if (DataContext is ViewModels.Histories vm && IsOnBranchColumnEdge(vm, pos))
+            {
+                if (e.GetCurrentPoint(border).Properties.IsLeftButtonPressed)
+                {
+                    _resizingBranchColumn = true;
+                    e.Handled = true;
+                }
+
+                return;
+            }
+
             var dis = CommitListContainer.Columns[0].ActualWidth - 4 - pos.X;
             if (dis > 4 || dis < -4)
                 return;
@@ -533,6 +556,21 @@ namespace SourceGit.Views
         private void OnCommitListHeaderPointerReleased(object sender, PointerReleasedEventArgs e)
         {
             _resizingAuthorColumn = false;
+            _resizingBranchColumn = false;
+        }
+
+        private static bool IsBranchColumnStyle()
+        {
+            return ViewModels.Preferences.Instance.GraphStyle == Models.GraphStyle.BranchColumn;
+        }
+
+        private static bool IsOnBranchColumnEdge(ViewModels.Histories vm, Point pos)
+        {
+            if (!IsBranchColumnStyle())
+                return false;
+
+            var dis = vm.BranchColumnWidth - pos.X;
+            return dis < 4 && dis > -4;
         }
 
         private void OnOpenAdvancedOptions(object sender, RoutedEventArgs e)
@@ -798,6 +836,12 @@ namespace SourceGit.Views
 
             var clipWidth = dataGrid.Columns[0].ActualWidth - 4;
             var offsetX = 0.0;
+            if (IsBranchColumnStyle() && DataContext is ViewModels.Histories vm)
+            {
+                offsetX = vm.BranchColumnWidth;
+                clipWidth = Math.Max(0, clipWidth - offsetX);
+            }
+
             var lastLayout = CommitGraph.Layout;
             if (lastLayout == null ||
                 Math.Abs(lastLayout.StartY - startY) > 0.01 ||
@@ -1990,6 +2034,7 @@ namespace SourceGit.Views
         private bool _isScrollToTopVisible = false;
         private bool _isDetailsPanelExpanded = true;
         private bool _resizingAuthorColumn = false;
+        private bool _resizingBranchColumn = false;
         private Cursor _resizingCursor = new(StandardCursorType.SizeWestEast);
     }
 }

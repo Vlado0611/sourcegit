@@ -83,6 +83,8 @@ namespace SourceGit.Views
             using (context.PushTransform(Matrix.CreateTranslation(_layout.OffsetX, -startY)))
             {
                 DrawCurves(context, _graph, startY, endY, rowHeight);
+                if (GraphStyle == Models.GraphStyle.BranchColumn)
+                    DrawConnectors(context, _graph, startY, endY, rowHeight);
                 DrawAnchors(context, _graph, startY, endY, rowHeight);
             }
         }
@@ -192,6 +194,32 @@ namespace SourceGit.Views
                 }
 
                 context.DrawGeometry(null, pen, geo);
+            }
+        }
+
+        private void DrawConnectors(DrawingContext context, Models.CommitGraph graph, double top, double bottom, double rowHeight)
+        {
+            var showTags = ShowTags;
+            var grayedPen = new Pen(Brushes.Gray, 2, DashStyle.Dash);
+
+            foreach (var dot in graph.Dots)
+            {
+                var center = new Point(dot.Center.X, dot.Center.Y * rowHeight);
+
+                if (center.Y < top)
+                    continue;
+                if (center.Y > bottom)
+                    break;
+
+                if (!dot.HasBranches && !(showTags && dot.HasTags))
+                    continue;
+
+                var endX = center.X - 9;
+                if (endX <= 0)
+                    continue;
+
+                var pen = dot.IsHighlighted ? new Pen(Models.CommitGraph.Pens[dot.Color].Brush, 2, DashStyle.Dash) : grayedPen;
+                context.DrawLine(pen, new Point(0, center.Y), new Point(endX, center.Y));
             }
         }
 

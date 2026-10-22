@@ -45,6 +45,12 @@ namespace SourceGit.Models
             set;
         } = 120;
 
+        public double BranchColumnWidth
+        {
+            get;
+            set;
+        } = 160;
+
         public bool EnableTopoOrderInHistory
         {
             get;
