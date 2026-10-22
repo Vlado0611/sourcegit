@@ -468,6 +468,14 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private async void RunPinnedCustomAction(object sender, RoutedEventArgs ev)
+        {
+            if (DataContext is ViewModels.Repository repo && sender is Control { DataContext: Models.CustomAction action })
+                await repo.ExecCustomActionAsync(action, null);
+
+            ev.Handled = true;
+        }
+
         private void OpenCustomActionMenu(object sender, RoutedEventArgs ev)
         {
             if (DataContext is ViewModels.Repository repo && sender is Control control)

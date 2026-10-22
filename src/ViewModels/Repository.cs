@@ -451,8 +451,25 @@ namespace SourceGit.ViewModels
             _uiStates = Models.RepositoryUIStates.Load(GitDir);
         }
 
+        public AvaloniaList<Models.CustomAction> ToolbarCustomActions { get; } = [];
+
+        public void RefreshToolbarCustomActions()
+        {
+            var pinned = new List<Models.CustomAction>();
+            foreach (var (act, _) in GetCustomActions(Models.CustomActionScope.Repository))
+            {
+                if (act.ShowInToolbar)
+                    pinned.Add(act);
+            }
+
+            ToolbarCustomActions.Clear();
+            ToolbarCustomActions.AddRange(pinned);
+        }
+
         public void Open()
         {
+            RefreshToolbarCustomActions();
+
             try
             {
                 _watcher = new Models.Watcher(this, FullPath, _gitCommonDir);

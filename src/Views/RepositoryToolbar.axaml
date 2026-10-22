@@ -5,6 +5,7 @@
              xmlns:m="using:SourceGit.Models"
              xmlns:vm="using:SourceGit.ViewModels"
              xmlns:c="using:SourceGit.Converters"
+             xmlns:v="using:SourceGit.Views"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SourceGit.Views.RepositoryToolbar"
              x:DataType="vm:Repository">
@@ -68,6 +69,22 @@
                    IsVisible="{Binding CurrentBranch?.Ahead, Mode=OneWay, Converter={x:Static c:ListConverters.IsNotNullOrEmpty}}"/>
         </Grid>
       </Button>
+
+      <ItemsControl ItemsSource="{Binding ToolbarCustomActions}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal"/>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="m:CustomAction">
+            <Button Classes="icon_button" Width="32" Margin="16,0,0,0" Click="RunPinnedCustomAction" ToolTip.Tip="{Binding Name}">
+              <v:CustomActionIcon Width="14" Height="14" Icon="{Binding Icon}" Foreground="{DynamicResource Brush.FG1}"/>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
 
       <Button Classes="icon_button" Width="32" Margin="16,0,0,0" Tapped="StashAll" IsVisible="{Binding !IsBare}">
         <ToolTip.Tip>

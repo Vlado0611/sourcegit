@@ -224,6 +224,12 @@ namespace SourceGit.Views
             var preferences = ViewModels.Preferences.Instance;
             preferences.UpdateAvailableAIModels();
             preferences.Save();
+
+            foreach (var page in App.GetLauncher().Pages)
+            {
+                if (page.Data is ViewModels.Repository r)
+                    r.RefreshToolbarCustomActions();
+            }
         }
 
         private async void SelectThemeOverrideFile(object _, RoutedEventArgs e)

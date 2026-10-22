@@ -283,6 +283,7 @@ namespace SourceGit.ViewModels
             await SetIfChangedAsync("fetch.prune", EnablePruneOnFetch ? "true" : "false", "false");
 
             await ApplyIssueTrackerChangesAsync();
+            _repo.RefreshToolbarCustomActions();
         }
 
         private async Task SetIfChangedAsync(string key, string value, string defValue)
