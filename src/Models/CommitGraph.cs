@@ -6,7 +6,7 @@ using Avalonia.Media;
 
 namespace SourceGit.Models
 {
-    public record CommitGraphLayout(double StartY, double ClipWidth, double RowHeight);
+    public record CommitGraphLayout(double StartY, double ClipWidth, double RowHeight, double OffsetX = 0);
 
     public enum CommitGraphHighlighting
     {
@@ -65,16 +65,21 @@ namespace SourceGit.Models
             public Point Center;
             public int Color;
             public bool IsHighlighted;
+            public bool IsMerge;
+            public bool HasBranches;
+            public bool HasTags;
         }
 
         public List<Path> Paths { get; } = [];
         public List<Link> Links { get; } = [];
         public List<Dot> Dots { get; } = [];
 
-        public static CommitGraph Generate(List<Commit> commits, bool firstParentOnlyEnabled, CommitGraphHighlighting highlighting, HashSet<string> highlightExtraCommits)
+        public static CommitGraph Generate(List<Commit> commits, bool firstParentOnlyEnabled, CommitGraphHighlighting highlighting, HashSet<string> highlightExtraCommits, GraphStyle style)
         {
-            const double unitWidth = 12;
-            const double halfWidth = 6;
+            var isBranchColumn = style == GraphStyle.BranchColumn;
+            var unitWidth = isBranchColumn ? 22.0 : 12.0;
+            var halfWidth = isBranchColumn ? 11.0 : 6.0;
+            var lanePadding = isBranchColumn ? 8.0 : 4.0;
             const double unitHeight = 1;
             const double halfHeight = 0.5;
 
@@ -93,7 +98,7 @@ namespace SourceGit.Models
                 offsetY += unitHeight;
 
                 // Find first curves that links to this commit and marks others that links to this commit ended.
-                var offsetX = 4 - halfWidth;
+                var offsetX = lanePadding - halfWidth;
                 var maxOffsetOld = unsolved.Count > 0 ? unsolved[^1].LastX : offsetX + unitWidth;
                 var isHighlighted = defHighlighting;
                 foreach (var l in unsolved)
@@ -198,7 +203,15 @@ namespace SourceGit.Models
                 // Calculate link position of this commit.
                 var position = new Point(major?.LastX ?? offsetX, offsetY);
                 var dotColor = major?.Path.Color ?? 0;
-                var anchor = new Dot() { Center = position, Color = dotColor, IsHighlighted = isHighlighted };
+                var anchor = new Dot()
+                {
+                    Center = position,
+                    Color = dotColor,
+                    IsHighlighted = isHighlighted,
+                    IsMerge = commit.Parents.Count > 1,
+                    HasBranches = commit.Decorators.Exists(x => x.Type != DecoratorType.Tag),
+                    HasTags = commit.Decorators.Exists(x => x.Type == DecoratorType.Tag),
+                };
                 if (commit.IsCurrentHead)
                     anchor.Type = DotType.Head;
                 else if (commit.Parents.Count > 1)
@@ -261,7 +274,7 @@ namespace SourceGit.Models
                 if (path.Path.Points.Count == 1 && Math.Abs(path.Path.Points[0].Y - endY) < 0.0001)
                     continue;
 
-                path.End((i + 0.5) * unitWidth + 4, endY + halfHeight, halfHeight);
+                path.End((i + 0.5) * unitWidth + lanePadding, endY + halfHeight, halfHeight);
             }
             unsolved.Clear();
 

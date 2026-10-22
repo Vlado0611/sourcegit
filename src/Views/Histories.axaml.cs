@@ -374,6 +374,18 @@ namespace SourceGit.Views
             InitializeComponent();
         }
 
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            ViewModels.Preferences.Instance.PropertyChanged += OnPreferencesPropertyChanged;
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            ViewModels.Preferences.Instance.PropertyChanged -= OnPreferencesPropertyChanged;
+            base.OnDetachedFromVisualTree(e);
+        }
+
         public async Task GotoParent()
         {
             if (DataContext is not ViewModels.Histories vm)
@@ -749,6 +761,12 @@ namespace SourceGit.Views
             menu.Open(button);
         }
 
+        private void OnPreferencesPropertyChanged(object _, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "GraphStyle" && DataContext is ViewModels.Histories vm)
+                vm.RegenerateGraph();
+        }
+
         private void OnCommitListLayoutUpdated(object _1, EventArgs _2)
         {
             if (!IsLoaded)
@@ -779,12 +797,14 @@ namespace SourceGit.Views
             IsScrollToTopVisible = startY >= rowHeight;
 
             var clipWidth = dataGrid.Columns[0].ActualWidth - 4;
+            var offsetX = 0.0;
             var lastLayout = CommitGraph.Layout;
             if (lastLayout == null ||
                 Math.Abs(lastLayout.StartY - startY) > 0.01 ||
                 Math.Abs(lastLayout.ClipWidth - clipWidth) > 0.01 ||
-                Math.Abs(lastLayout.RowHeight - rowHeight) > 0.01)
-                CommitGraph.Layout = new(startY, clipWidth, rowHeight);
+                Math.Abs(lastLayout.RowHeight - rowHeight) > 0.01 ||
+                Math.Abs(lastLayout.OffsetX - offsetX) > 0.01)
+                CommitGraph.Layout = new(startY, clipWidth, rowHeight, offsetX);
         }
 
         private void OnScrollToTopPointerPressed(object sender, PointerPressedEventArgs e)

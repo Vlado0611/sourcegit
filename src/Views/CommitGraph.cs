@@ -39,6 +39,33 @@ namespace SourceGit.Views
             set => SetValue(DotBrushProperty, value);
         }
 
+        public static readonly StyledProperty<Models.GraphStyle> GraphStyleProperty =
+            AvaloniaProperty.Register<CommitGraph, Models.GraphStyle>(nameof(GraphStyle), Models.GraphStyle.Classic);
+
+        public Models.GraphStyle GraphStyle
+        {
+            get => GetValue(GraphStyleProperty);
+            set => SetValue(GraphStyleProperty, value);
+        }
+
+        public static readonly StyledProperty<IBrush> HeadRingBrushProperty =
+            AvaloniaProperty.Register<CommitGraph, IBrush>(nameof(HeadRingBrush), Brushes.Transparent);
+
+        public IBrush HeadRingBrush
+        {
+            get => GetValue(HeadRingBrushProperty);
+            set => SetValue(HeadRingBrushProperty, value);
+        }
+
+        public static readonly StyledProperty<bool> ShowTagsProperty =
+            AvaloniaProperty.Register<CommitGraph, bool>(nameof(ShowTags), true);
+
+        public bool ShowTags
+        {
+            get => GetValue(ShowTagsProperty);
+            set => SetValue(ShowTagsProperty, value);
+        }
+
         public override void Render(DrawingContext context)
         {
             base.Render(context);
@@ -52,8 +79,8 @@ namespace SourceGit.Views
             var rowHeight = _layout.RowHeight;
             var endY = startY + clipHeight + 28;
 
-            using (context.PushClip(new Rect(0, 0, clipWidth, clipHeight)))
-            using (context.PushTransform(Matrix.CreateTranslation(0, -startY)))
+            using (context.PushClip(new Rect(_layout.OffsetX, 0, clipWidth, clipHeight)))
+            using (context.PushTransform(Matrix.CreateTranslation(_layout.OffsetX, -startY)))
             {
                 DrawCurves(context, _graph, startY, endY, rowHeight);
                 DrawAnchors(context, _graph, startY, endY, rowHeight);
@@ -66,7 +93,10 @@ namespace SourceGit.Views
 
             if (change.Property == GraphProperty ||
                 change.Property == LayoutProperty ||
-                change.Property == DotBrushProperty)
+                change.Property == DotBrushProperty ||
+                change.Property == GraphStyleProperty ||
+                change.Property == HeadRingBrushProperty ||
+                change.Property == ShowTagsProperty)
                 InvalidateVisual();
         }
 
@@ -170,6 +200,7 @@ namespace SourceGit.Views
             var dotFill = DotBrush;
             var dotFillPen = new Pen(dotFill, 2);
             var grayedPen = new Pen(Brushes.Gray, Models.CommitGraph.Pens[0].Thickness);
+            var isBranchColumn = GraphStyle == Models.GraphStyle.BranchColumn;
 
             foreach (var dot in graph.Dots)
             {
@@ -181,6 +212,26 @@ namespace SourceGit.Views
                     break;
 
                 var pen = dot.IsHighlighted ? Models.CommitGraph.Pens[dot.Color] : grayedPen;
+                if (isBranchColumn)
+                {
+                    if (dot.IsMerge)
+                    {
+                        context.DrawEllipse(dotFill, new Pen(pen.Brush, 2), center, 9, 9);
+                        var plusPen = new Pen(pen.Brush, 2);
+                        context.DrawLine(plusPen, new Point(center.X, center.Y - 4), new Point(center.X, center.Y + 4));
+                        context.DrawLine(plusPen, new Point(center.X - 4, center.Y), new Point(center.X + 4, center.Y));
+                    }
+                    else
+                    {
+                        context.DrawEllipse(pen.Brush, null, center, 9, 9);
+                    }
+
+                    if (dot.Type == Models.CommitGraph.DotType.Head)
+                        context.DrawEllipse(null, new Pen(HeadRingBrush, 2), center, 13, 13);
+
+                    continue;
+                }
+
                 switch (dot.Type)
                 {
                     case Models.CommitGraph.DotType.Head:

@@ -13,5 +13,8 @@ namespace SourceGit.Converters
                     _ => App.Text("Preferences.General.GraphStyle.Classic"),
                 };
             });
+
+        public static readonly FuncValueConverter<Models.GraphStyle, double> ToRowHeight =
+            new FuncValueConverter<Models.GraphStyle, double>(v => v == Models.GraphStyle.BranchColumn ? 30.0 : 26.0);
     }
 }
