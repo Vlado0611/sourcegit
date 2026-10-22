@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 
 namespace SourceGit.Views
@@ -29,6 +30,18 @@ namespace SourceGit.Views
             var clipboard = TopLevel.GetTopLevel(control)?.Clipboard;
             if (clipboard != null)
                 await clipboard.SetTextAsync(text);
+        }
+
+        public static CustomActionIcon CreateCustomActionIcon(this Control control, Models.CustomAction action)
+        {
+            var icon = new CustomActionIcon()
+            {
+                Icon = action.Icon,
+                Width = 12,
+                Height = 12,
+            };
+            icon.Bind(CustomActionIcon.ForegroundProperty, new DynamicResourceExtension("Brush.FG1"));
+            return icon;
         }
 
         public static Path CreateMenuIcon(this Control control, string iconKey)

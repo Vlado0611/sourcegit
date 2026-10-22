@@ -73,6 +73,8 @@ namespace SourceGit.Models
 
     public class CustomAction : ObservableObject
     {
+        public const string IconFilePrefix = "file:";
+
         public string Name
         {
             get => _name;
@@ -109,10 +111,24 @@ namespace SourceGit.Models
             set => SetProperty(ref _waitForExit, value);
         }
 
+        public bool ShowInToolbar
+        {
+            get => _showInToolbar;
+            set => SetProperty(ref _showInToolbar, value);
+        }
+
+        public string Icon
+        {
+            get => _icon;
+            set => SetProperty(ref _icon, value);
+        }
+
         private string _name = string.Empty;
         private CustomActionScope _scope = CustomActionScope.Repository;
         private string _executable = string.Empty;
         private string _arguments = string.Empty;
         private bool _waitForExit = true;
+        private bool _showInToolbar = false;
+        private string _icon = string.Empty;
     }
 }

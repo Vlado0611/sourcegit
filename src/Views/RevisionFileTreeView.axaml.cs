@@ -775,7 +775,7 @@ namespace SourceGit.Views
                 {
                     var (dup, label) = action;
                     var item = new MenuItem();
-                    item.Icon = this.CreateMenuIcon("Icons.Action");
+                    item.Icon = this.CreateCustomActionIcon(dup);
                     item.Header = label;
                     item.Click += async (_, e) =>
                     {
