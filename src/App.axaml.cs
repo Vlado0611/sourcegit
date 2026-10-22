@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
@@ -135,6 +136,9 @@ namespace SourceGit
                 app._themeOverrides = null;
             }
 
+            app._graphColorOverrides = [];
+            app._graphPenThickness = 2;
+
             if (!string.IsNullOrEmpty(themeOverridesFile) && File.Exists(themeOverridesFile))
             {
                 try
@@ -150,10 +154,8 @@ namespace SourceGit
                             resDic[$"Color.{kv.Key}"] = kv.Value;
                     }
 
-                    if (overrides.GraphColors.Count > 0)
-                        Models.CommitGraph.SetPens(overrides.GraphColors, overrides.GraphPenThickness);
-                    else
-                        Models.CommitGraph.SetDefaultPens(overrides.GraphPenThickness);
+                    app._graphColorOverrides = [.. overrides.GraphColors];
+                    app._graphPenThickness = overrides.GraphPenThickness;
 
                     app.Resources.MergedDictionaries.Add(resDic);
                     app._themeOverrides = resDic;
@@ -163,10 +165,19 @@ namespace SourceGit
                     // ignore
                 }
             }
+
+            ApplyGraphPens();
+        }
+
+        public static void ApplyGraphPens()
+        {
+            if (Current is not App app)
+                return;
+
+            if (app._graphColorOverrides.Count > 0)
+                Models.CommitGraph.SetPens(app._graphColorOverrides, app._graphPenThickness);
             else
-            {
-                Models.CommitGraph.SetDefaultPens();
-            }
+                Models.CommitGraph.SetDefaultPens(app._graphPenThickness, ViewModels.Preferences.Instance.GraphStyle == Models.GraphStyle.BranchColumn);
         }
 
         public static void SetFonts(string defaultFont, string monospaceFont)
@@ -601,6 +612,8 @@ namespace SourceGit
         private ViewModels.Launcher _launcher = null;
         private ResourceDictionary _activeLocale = null;
         private ResourceDictionary _themeOverrides = null;
+        private List<Color> _graphColorOverrides = [];
+        private double _graphPenThickness = 2;
         private ResourceDictionary _fontsOverrides = null;
     }
 }

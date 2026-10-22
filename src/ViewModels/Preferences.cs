@@ -214,7 +214,18 @@ namespace SourceGit.ViewModels
         public Models.GraphStyle GraphStyle
         {
             get => _graphStyle;
-            set => SetProperty(ref _graphStyle, value);
+            set
+            {
+                if (_graphStyle == value)
+                    return;
+
+                _graphStyle = value;
+
+                if (!_isLoading)
+                    App.ApplyGraphPens();
+
+                OnPropertyChanged();
+            }
         }
 
         public bool UseTwoColumnsLayoutInHistories

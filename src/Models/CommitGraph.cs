@@ -25,9 +25,9 @@ namespace SourceGit.Models
         public static List<Pen> SolidPens { get; } = [];
         public static List<Pen> DashedPens { get; } = [];
 
-        public static void SetDefaultPens(double thickness = 2)
+        public static void SetDefaultPens(double thickness = 2, bool muted = false)
         {
-            SetPens(s_defaultPenColors, thickness);
+            SetPens(muted ? s_mutedPenColors : s_defaultPenColors, thickness);
         }
 
         public static void SetPens(List<Color> colors, double thickness)
@@ -456,6 +456,19 @@ namespace SourceGit.Models
             Colors.Lime,
             Colors.RoyalBlue,
             Colors.Teal,
+        ];
+
+        private static readonly List<Color> s_mutedPenColors = [
+            Color.Parse("#D9A65B"),
+            Color.Parse("#4E9A5B"),
+            Color.Parse("#5FB8B0"),
+            Color.Parse("#8E8A4A"),
+            Color.Parse("#B868B8"),
+            Color.Parse("#C8605A"),
+            Color.Parse("#CFC28E"),
+            Color.Parse("#7FBF6A"),
+            Color.Parse("#6A84C8"),
+            Color.Parse("#3F8F8F"),
         ];
     }
 }
